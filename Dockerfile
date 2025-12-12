@@ -17,7 +17,7 @@ COPY . .
 ENV NODE_ENV=production
 
 # Expor a porta que o app usa (boa prática para plataformas de deploy)
-EXPOSE 3000
+EXPOSE 80
 
 # Comando padrão para iniciar o chatbot
 CMD ["node", "chatbot.js"]

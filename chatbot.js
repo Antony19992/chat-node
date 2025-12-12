@@ -64,7 +64,7 @@ async function startServer() {
     res.send('Chatbot em Node.js está rodando! Use POST /chat com { "message": "..." }');
   });
 
-  const PORT = process.env.PORT || 3000;
+  const PORT = process.env.PORT || 80;
   app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
   });
