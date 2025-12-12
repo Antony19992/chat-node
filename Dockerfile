@@ -13,8 +13,11 @@ RUN npm install --production
 # Copiar o restante do código
 COPY . .
 
-# Definir variável de ambiente (opcional)
+# Definir variável de ambiente padrão
 ENV NODE_ENV=production
+
+# Expor a porta que o app usa (boa prática para plataformas de deploy)
+EXPOSE 3000
 
 # Comando padrão para iniciar o chatbot
 CMD ["node", "chatbot.js"]
