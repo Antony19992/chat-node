@@ -1,0 +1,6 @@
+# paths to ignore
+/node_modules
+
+# files to ignore
+model.nlp
+package-lock.json
