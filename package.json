@@ -9,10 +9,17 @@
     "clean-model": "rm -f model.nlp",
     "retrain": "npm run clean-model && npm start"
   },
-  "keywords": ["chatbot", "nlp", "nodejs", "pt-BR"],
+  "keywords": [
+    "chatbot",
+    "nlp",
+    "nodejs",
+    "pt-BR"
+  ],
   "author": "Antony",
   "license": "ISC",
   "dependencies": {
+    "body-parser": "^2.2.1",
+    "express": "^5.2.1",
     "node-nlp": "^5.0.0-alpha.5"
   }
 }

@@ -1,6 +1,8 @@
 const { NlpManager } = require('node-nlp');
 const fs = require('fs');
 const path = require('path');
+const express = require('express');
+const bodyParser = require('body-parser');
 
 // Caminhos
 const DATASET_PATH = path.join(__dirname, 'intents.json');
@@ -10,19 +12,10 @@ const MODEL_PATH = path.join(__dirname, 'model.nlp');
 function normalizarTexto(texto) {
   if (!texto) return "";
 
-  // Colocar em minúsculas
   let t = texto.toLowerCase();
-
-  // Remover acentos
   t = t.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-  // Reduzir repetições de letras (ex.: oiiiiii -> oi)
-  t = t.replace(/(.)\1{2,}/g, "$1$1"); 
-  // regra: mantém no máximo 2 repetições
-
-  // Remover espaços extras
+  t = t.replace(/(.)\1{2,}/g, "$1$1"); // reduz repetições
   t = t.trim().replace(/\s+/g, " ");
-
   return t;
 }
 
@@ -40,7 +33,6 @@ for (const intent of dataset.intents) {
 }
 
 async function trainIfNeeded() {
-  // Se existir modelo salvo, carregar; senão treinar
   if (fs.existsSync(MODEL_PATH)) {
     manager.load(MODEL_PATH);
     console.log('Modelo carregado do disco.');
@@ -52,29 +44,32 @@ async function trainIfNeeded() {
   }
 }
 
-async function startConsole() {
+async function startServer() {
   await trainIfNeeded();
 
-  const rl = require('readline').createInterface({
-    input: process.stdin,
-    output: process.stdout
+  const app = express();
+  app.use(bodyParser.json());
+
+  // Endpoint principal
+  app.post('/chat', async (req, res) => {
+    const { message } = req.body;
+    const entrada = normalizarTexto(message);
+    const result = await manager.process('pt', entrada);
+    const resposta = result.answer || 'Não entendi, pode reformular?';
+    res.json({ reply: resposta });
   });
 
-  console.log('Chatbot iniciado. Digite sua mensagem (Ctrl+C para sair).');
+  // Endpoint de teste
+  app.get('/', (_req, res) => {
+    res.send('Chatbot em Node.js está rodando! Use POST /chat com { "message": "..." }');
+  });
 
-  const loop = () => {
-    rl.question('Você: ', async (texto) => {
-      const entrada = normalizarTexto(texto);
-      const res = await manager.process('pt', entrada);
-      const resposta = res.answer || 'Não entendi, pode reformular?';
-      console.log('Bot:', resposta);
-      loop();
-    });
-  };
-
-  loop();
+  const PORT = process.env.PORT || 80;
+  app.listen(PORT, () => {
+    console.log(`Servidor rodando na porta ${PORT}`);
+  });
 }
 
-startConsole().catch(err => {
-  console.error('Erro ao iniciar chatbot:', err);
+startServer().catch(err => {
+  console.error('Erro ao iniciar servidor:', err);
 });
