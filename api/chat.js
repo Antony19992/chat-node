@@ -1,31 +1,57 @@
 // api/chat.js
-const { manager, normalizarTexto, trainIfNeeded } = require('../chatbot');
+import { NlpManager } from 'node-nlp';
+import fs from 'fs';
+import path from 'path';
 
-let trained = false;
+const MODEL_PATH = path.join(process.cwd(), 'model.nlp');
+let manager = null;
 
-module.exports = async (req, res) => {
-  // Treina ou carrega o modelo apenas uma vez
-  if (!trained) {
-    await trainIfNeeded();
-    trained = true;
+function carregarModelo() {
+  if (!manager) {
+    manager = new NlpManager({ languages: ['pt'], forceNER: true });
+    manager.load(MODEL_PATH);
+  }
+}
+
+export default async function handler(req, res) {
+  // CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*'); // ou defina seu domínio específico
+  res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  // Pré-flight para requisições OPTIONS
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
   }
 
-  // Rota de teste GET /api/chat
+  // Rota de teste
   if (req.method === 'GET') {
-    res.status(200).send('Chatbot em Node.js está rodando! Use POST /api/chat com { "message": "..." }');
+    res.status(200).json({ status: 'API do chatbot está ativa.' });
     return;
   }
 
-  // Rota principal POST /api/chat
+  // Rota principal: POST /chat
   if (req.method === 'POST') {
-    const { message } = req.body || {};
-    const entrada = normalizarTexto(message);
-    const result = await manager.process('pt', entrada);
-    const resposta = result.answer || 'Não entendi, pode reformular?';
-    res.status(200).json({ reply: resposta });
+    try {
+      const { message } = req.body;
+      if (!message) {
+        res.status(400).json({ error: 'Mensagem não fornecida.' });
+        return;
+      }
+
+      carregarModelo();
+      const response = await manager.process('pt', message);
+      const reply = response.answer || 'Desculpe, não entendi. Pode reformular?';
+
+      res.status(200).json({ reply });
+    } catch (err) {
+      console.error('Erro no processamento:', err);
+      res.status(500).json({ error: 'Erro interno no chatbot.' });
+    }
     return;
   }
 
-  // Qualquer outra rota/método
-  res.status(404).send('Rota não encontrada');
-};
+  // Método não permitido
+  res.status(405).json({ error: 'Método não permitido.' });
+}
