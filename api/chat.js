@@ -3,15 +3,13 @@ const { NlpManager } = require('node-nlp');
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
+
+const app = express();
+app.use(express.json());
 app.use(cors({
   origin: '*', // ou use o domínio do seu front-end para mais segurança
   methods: ['GET', 'POST', 'OPTIONS'],
 }));
-
-
-const app = express();
-app.use(express.json());
-
 // Caminhos corretos (sobem uma pasta para achar os arquivos na raiz)
 const MODEL_PATH = path.join(__dirname, '..', 'model.nlp');
 const INTENTS_PATH = path.join(__dirname, '..', 'intents.json');
