@@ -1,55 +1,69 @@
+import express from 'express';
 import { NlpManager } from 'node-nlp';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
+const app = express();
+app.use(express.json());
+
+// Corrige __dirname em ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Caminhos corretos (sobem uma pasta para achar os arquivos na raiz)
+const MODEL_PATH = path.join(__dirname, '..', 'model.nlp');
+const INTENTS_PATH = path.join(__dirname, '..', 'intents.json');
+
+// Cria o gerenciador NLP
 const manager = new NlpManager({ languages: ['pt'], forceNER: true });
-manager.load('./model.nlp'); // modelo já treinado
 
-// Memória de sessões (em RAM)
-const sessions = {};
-
-function getSession(userId) {
-  if (!sessions[userId]) sessions[userId] = [];
-  return sessions[userId];
+// Função para normalizar texto
+function normalizarTexto(texto) {
+  if (!texto) return "";
+  let t = texto.toLowerCase();
+  t = t.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  t = t.replace(/(.)\1{2,}/g, "$1$1");
+  t = t.trim().replace(/\s+/g, " ");
+  return t;
 }
 
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+// Carrega intents do arquivo JSON
+function carregarIntents() {
+  const dataset = JSON.parse(fs.readFileSync(INTENTS_PATH, 'utf8'));
+  for (const intent of dataset.intents) {
+    const { tag, patterns, responses } = intent;
+    patterns.forEach(p => manager.addDocument('pt', p, tag));
+    responses.forEach(r => manager.addAnswer('pt', tag, r));
   }
-
-  if (req.method === 'GET') {
-    res.status(200).json({ status: 'API do chatbot com memória está ativa.' });
-    return;
-  }
-
-  if (req.method === 'POST') {
-    try {
-      const { message, userId = 'anon' } = req.body;
-      if (!message) {
-        res.status(400).json({ error: 'Mensagem não fornecida.' });
-        return;
-      }
-
-      const history = getSession(userId);
-      history.push(message);
-
-      // Usa as últimas 3 mensagens como contexto
-      const context = history.slice(-3).join(' ');
-      const response = await manager.process('pt', context);
-
-      const reply = response.answer || 'Desculpe, não entendi. Pode reformular?';
-
-      res.status(200).json({ reply });
-    } catch (err) {
-      console.error('Erro no chatbot:', err);
-      res.status(500).json({ error: 'Erro interno no chatbot.' });
-    }
-    return;
-  }
-
-  res.status(405).json({ error: 'Método não permitido.' });
 }
+
+// Treina ou carrega modelo
+async function trainIfNeeded() {
+  if (fs.existsSync(MODEL_PATH)) {
+    manager.load(MODEL_PATH);
+    console.log("✅ Modelo carregado de", MODEL_PATH);
+  } else {
+    console.log("⚙️ Treinando modelo...");
+    carregarIntents();
+    await manager.train();
+    manager.save(MODEL_PATH);
+    console.log("✅ Modelo treinado e salvo em", MODEL_PATH);
+  }
+}
+
+// Inicializa servidor
+(async () => {
+  await trainIfNeeded();
+
+  app.post('/chat', async (req, res) => {
+    const texto = normalizarTexto(req.body.message);
+    const resposta = await manager.process('pt', texto);
+    res.json({ reply: resposta.answer || "Não entendi 🤔" });
+  });
+
+  const PORT = 3000;
+  app.listen(PORT, () => {
+    console.log(`🚀 API de chat rodando em http://localhost:${PORT}/chat`);
+  });
+})();
