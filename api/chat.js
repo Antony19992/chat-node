@@ -1,15 +1,10 @@
-import express from 'express';
-import { NlpManager } from 'node-nlp';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+const express = require('express');
+const { NlpManager } = require('node-nlp');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 app.use(express.json());
-
-// Corrige __dirname em ES Modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Caminhos corretos (sobem uma pasta para achar os arquivos na raiz)
 const MODEL_PATH = path.join(__dirname, '..', 'model.nlp');
@@ -62,7 +57,7 @@ async function trainIfNeeded() {
     res.json({ reply: resposta.answer || "Não entendi 🤔" });
   });
 
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
     console.log(`🚀 API de chat rodando em http://localhost:${PORT}/chat`);
   });
