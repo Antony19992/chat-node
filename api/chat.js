@@ -2,6 +2,12 @@ const express = require('express');
 const { NlpManager } = require('node-nlp');
 const fs = require('fs');
 const path = require('path');
+const cors = require('cors');
+app.use(cors({
+  origin: '*', // ou use o domínio do seu front-end para mais segurança
+  methods: ['GET', 'POST', 'OPTIONS'],
+}));
+
 
 const app = express();
 app.use(express.json());
